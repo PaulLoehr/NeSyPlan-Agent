@@ -650,7 +650,8 @@ def main(argv=None):
             elif cmd == 'mode':
                 if rest and rest not in demo.available_modes:
                     reason = ('unknown mode' if rest not in DEMO_MODES
-                              else 'not available for this model (reasoning-off needs phoenix)')
+                              else 'not available for this model (this mode needs a model whose '
+                                   'reasoning can be disabled)')
                     print(f'/mode {rest!r}: {reason}; choices: {", ".join(demo.available_modes)}')
                 else:
                     demo.set_mode(rest if rest in demo.available_modes
