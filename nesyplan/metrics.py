@@ -53,7 +53,8 @@ class Metrics:
         """Fold one turn's returned reasoning trace into the cost proxy.
 
         Called for EVERY turn, not just reasoning-on ones: a model that cannot honour
-        reasoning=False still thinks (FINDINGS Finding A), and that cost is real. This is
+        reasoning=False still thinks -- "none" is a hint the serving backend may ignore --
+        and that cost is real. This is
         the only measurement of the reasoning axis that does not depend on the provider
         reporting reasoning_tokens (it never does).
         """

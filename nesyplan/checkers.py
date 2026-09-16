@@ -3,8 +3,8 @@
 The LLM judge (nesyplan/judge.py) is the GENERAL scorer and stays: it is the only thing
 that can score an open-ended goal ("build a structure that defends the red block") or an
 ad-hoc --task-prompt. But it is also the harness's noisiest instrument -- it flips on
-identical structures and has invented cube colours the scene never had (docs/FINDINGS.md,
-Finding C side-note). A scorer with that much variance cannot carry a cost/robustness
+identical structures and has invented cube colours the scene never had. A scorer with that
+much variance cannot carry a cost/robustness
 front, because a 15-point config difference disappears into judge noise.
 
 For the tasks whose goal IS formally checkable, we do not need a language model at all:

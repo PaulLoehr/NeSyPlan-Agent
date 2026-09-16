@@ -90,7 +90,12 @@ DEFAULT_CONFIGS = [
 # H6 (content-as-memory) -- selectable via --configs, NOT in the default run (keeps the
 # pilot lean). content_plan = prompt the model to keep a GOAL/DONE/NEXT plan in content;
 # strip_content = ablate content from re-sent history (mainly meaningful for models that
-# write content natively, e.g. kimi). See docs/EXPERIMENT.md and docs/FINDINGS.md Finding D.
+# write content natively, e.g. kimi). See docs/EXPERIMENT.md.
+#
+# Worth keeping in mind when reading any of these: orchestration cannot fix a capability
+# floor. A model that re-derives because nothing carried over is what cache/policy are FOR;
+# a model that has the feedback in context and simply does not act on it is not, and the two
+# look alike in a transcript.
 EXTRA_CONFIGS = [
     {'label': 'react_content',        'policy': 'always',       'cache': 'none', 'content_plan': True},
     {'label': 'react_strip',          'policy': 'always',       'cache': 'none', 'strip_content': True},
@@ -182,7 +187,8 @@ CONFIG_GROUPS = {
 # repository works with nothing but an OpenRouter key.
 #
 # Caveat, stated plainly: this judge is no stronger than the models it scores, and an LLM
-# judge on this domain is documented to be unreliable (docs/FINDINGS.md). That is exactly
+# judge on this domain is unreliable -- it has flipped its verdict on structurally identical
+# final states and described cube colours the scene never contained. That is exactly
 # why the shipped experiment runs on @rebuild, where every task has a symbolic CHECKER and
 # the judge is only recorded alongside it for agreement. Do not build a claim on a
 # judge-only number. Override with --judge-model.
@@ -320,9 +326,9 @@ def run_cell(model, task, cfg, rep, args, campaign, campaign_dir, robot):
 
     # Scoring: the LLM judge, always -- one scorer for every task (nesyplan/judge.py).
     # Kept deterministic (temp=0) for stable, reproducible verdicts. NOTE: on a Qwen3
-    # thinking model (phoenix) this means judge-reasoning-ON runs at greedy decoding --
-    # slow and prone to runaway traces (Finding C2); prefer --no-judge-reasoning there
-    # (reasoning-off + temp=0 is clean and deterministic).
+    # thinking model this means judge-reasoning-ON runs at greedy decoding, which is the
+    # degenerate regime for that family -- slow and prone to runaway traces; prefer
+    # --no-judge-reasoning there (reasoning-off + temp=0 is clean and deterministic).
     judge_llm = LLMClient(model=args.judge_model or DEFAULT_JUDGE_MODEL, temperature=0.0,
                           on_effort=args.judge_effort)
     judge = judge_episode(task.prompt, final, judge_llm,

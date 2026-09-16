@@ -326,7 +326,7 @@ class AgenticSession:
             self.metrics.add_llm(resp.usage)
             # Count the trace the model ACTUALLY produced, not the one we asked for: the
             # endpoint returns no usage.reasoning_tokens (all None), and a model that cannot
-            # honour reasoning=False still thinks (FINDINGS Finding A). Measuring the
+            # honour reasoning=False still thinks ("none" is only a hint). Measuring the
             # returned trace is the only faithful cost signal for this dimension.
             self.metrics.add_trace(resp.trace)
             if reasoning:

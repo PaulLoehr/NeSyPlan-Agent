@@ -7,7 +7,9 @@ SAME prompt to each aliased model twice (effort "none" vs "high") and prints, fo
 the returned reasoning-trace length + a content snippet. If the "none" trace is not ~0,
 that model cannot have its CoT disabled here -- which makes the harness's no-reasoning
 legs (oneshot_nocot, reason_first_noreason, every reasoning-OFF turn) invalid for it, and
-it must stay out of demo._REASONING_OPTIONAL. See docs/FINDINGS.md, Finding A.
+it must stay out of demo._REASONING_OPTIONAL. The failure is silent and expensive: a model
+that ignores "none" makes every reasoning-OFF arm a duplicate of its reasoning-ON cousin,
+so the comparison measures nothing while producing a table that looks like it does.
 
 Each model is probed at ITS OWN provider, with that provider's key, headers and reasoning
 dialect (nesyplan/providers.py) -- so Phoenix and OpenRouter models can be compared in one
@@ -94,9 +96,9 @@ def main(argv=None):
             print(f'{alias:10s} {effort:6s} | {r["ms"]:>6d} {r["trace_chars"]:>8d} '
                   f'{str(r["completion_tokens"]):>8s} | {r["content"]}')
         print()
-    print('Read: a "none" trace of ~0 == CoT can be disabled (phoenix/merlin) -> the model may '
-          'join demo._REASONING_OPTIONAL. A large or identical-to-"high" trace == the toggle is '
-          'a no-op for that model (kimi/command) -> keep it out.')
+    print('Read: a "none" trace of ~0 == CoT can genuinely be disabled (verified for the '
+          'qwen3 aliases) -> the model may join demo._REASONING_OPTIONAL. A large or '
+          'identical-to-"high" trace == the toggle is a no-op for that model -> keep it out.')
     return 0
 
 

@@ -28,8 +28,9 @@ from nesyplan.config import CacheMode
 # eval judge is, so summarization quality is held constant when driver models are compared.
 #
 # The requirement is that it honours an effort of "none": the distillation must itself be
-# reasoning-off, or the cache costs more than it saves (docs/FINDINGS.md, Finding A --
-# kimi and command cannot disable it and are unusable here). qwen3-32b is verified to
+# reasoning-off, or the cache costs more than it saves. Whether "none" is honoured is a
+# property of the SERVING BACKEND, not of the API -- some models ignore it and keep
+# thinking, which makes them unusable here. qwen3-32b is verified to
 # honour it and is publicly reachable, which keeps the SUMMARY configs runnable with
 # nothing but an OpenRouter key. Override with NESYPLAN_SUMMARIZER_MODEL.
 SUMMARIZER_MODEL = os.environ.get('NESYPLAN_SUMMARIZER_MODEL') or 'qwen3-32b'

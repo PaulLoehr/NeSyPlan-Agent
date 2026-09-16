@@ -142,7 +142,7 @@ reasons the task was kept this simple.
 | `scenarios.py` | named starting layouts — a cube buried, boxed in, goal cells occupied |
 | `tasks.py` · `checkers.py` | the task ladder and their symbolic scorers |
 | `eval.py` · `aggregate.py` · `viewer.py` | campaign runner, roll-up, HTML report |
-| `judge.py` | the LLM fallback scorer (secondary — see FINDINGS) |
+| `judge.py` | the LLM fallback scorer (secondary and unreliable — see EXPERIMENT.md) |
 | `llm.py` · `providers.py` · `model_aliases.py` | one OpenAI-compatible client, routed per model |
 | `web_demo.py` · `webui/` | the browser demonstrator (SSE, Vue, no build step) |
 | `demo.py` · `run.py` | the same engine in a terminal, and a single scripted episode |

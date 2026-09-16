@@ -103,9 +103,9 @@ work"* from *"the compression loses something"*.
 
 **The scoring.** Every task in this tier has a **symbolic checker** that reads the final
 world state. That matters: an LLM judge on this domain flips its verdict on identical
-structures and invents cube colours the scene never had (see
-[docs/FINDINGS.md](docs/FINDINGS.md)). The judge still runs alongside, and its agreement
-with the checker is recorded — so its unreliability stays measurable instead of assumed.
+structures and invents cube colours the scene never had. The judge still runs alongside,
+and its agreement with the checker is recorded — so its unreliability stays measurable
+instead of assumed ([docs/EXPERIMENT.md](docs/EXPERIMENT.md) has the detail).
 
 ```bash
 ./scripts/run_experiment.sh --list     # print the matrix, run nothing
@@ -220,7 +220,7 @@ nesyplan/          the agent: loop, policies, cache, world model, eval, web UI
   webui/           the browser front end (Vue, vendored; no build step)
 data/cubes.json    the cube set — one source of truth for state, prompt and drawing
 scripts/           run_web_demo.sh · run_experiment.sh
-docs/              ARCHITECTURE.md · EXPERIMENT.md · FINDINGS.md
+docs/              ARCHITECTURE.md · EXPERIMENT.md
 images/            UI screenshots, photographs of the cell, the printable plate
 results/harness/   the shipped campaign's summary, results table and manifest
 llm_logs/          your recorded sessions (plus the one shipped for `replay`)

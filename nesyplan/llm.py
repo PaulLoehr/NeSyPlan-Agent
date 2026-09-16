@@ -53,8 +53,8 @@ _MAX_ATTEMPTS = 4   # 1 try + 3 retries, exponential backoff (1/2/4 s)
 #
 # Second, independent trade-off: greedy is the degenerate regime for Qwen3-based thinking
 # models like phoenix -- it inflates reasoning (~3.7x runaway) and biases effect *magnitudes*
-# (16x vs ~3x; see docs/FINDINGS.md C2). Config *ranking* is largely preserved, absolute
-# magnitudes are not.
+# (a 16x gap measured at temp 0 came out ~3x at recommended sampling). Config *ranking* is
+# largely preserved, absolute magnitudes are not.
 #
 # Hence: keep temp 0 for the live demo (predictable on stage), but run measurement campaigns
 # at `--temperature 0.6 --top-p 0.95` with `--reps > 1`. 0.6/0.95 is also Qwen3's own

@@ -14,13 +14,13 @@ ONE evolving world:
   - Cubes can be returned to storage: the agent has a store() tool (so "raeume alle
     Wuerfel auf" works as a task) AND there is a deterministic /cleanup command that tidies
     up without the LLM (a reliable re-demo reset to the all-in-storage layout).
-  - Before the first task the user picks the MODEL (phoenix / kimi / command / merlin /
-    qwen3-32b -- see nesyplan/model_aliases.py; the endpoint follows the model, so the list
-    spans providers) and then the MODE; /mode switches the mode live. The reasoning-OFF
-    modes (oneshot_nocot, reason_first_noreason, on_error*) are offered ONLY for phoenix --
-    the one model here whose chain-of-thought an effort of "none" actually disables (on the
-    others they would collapse into their always-on cousins). The always-on modes (oneshot,
-    react, react_raw, react_summary) are available on every model.
+  - Before the first task the user picks the MODEL (default qwen3-32b; see
+    nesyplan/model_aliases.py -- the endpoint follows the model, so the list spans
+    providers) and then the MODE; /mode switches the mode live. The reasoning-OFF modes
+    (oneshot_nocot, reason_first_noreason, on_error*) are offered ONLY for models whose
+    chain-of-thought an effort of "none" actually disables -- the qwen3 aliases and phoenix;
+    on the others they would silently collapse into their always-on cousins. The always-on
+    modes (oneshot, react, react_raw, react_summary) are available on every model.
 
 The chat is a genuine continuous conversation for the agentic modes: one AgenticSession
 (nesyplan/orchestrator.py) persists the message history + reasoning cache across tasks, so
@@ -288,7 +288,7 @@ DEFAULT_MODE = 'react_summary'   # universal (not reason_off, so available on ev
 # Model ids (substring match) whose chain-of-thought can genuinely be turned OFF, i.e. an
 # effort of "none" leaves the reasoning trace empty -- VERIFIED per model with
 # `python3 -m nesyplan.probe_reasoning`, never assumed: whether "none" is honoured is a
-# property of the serving backend, not of the API (docs/FINDINGS.md, Finding A).
+# property of the serving backend, not of the API.
 #
 # This gate is not cosmetic. If a model silently IGNORES "none", every reasoning-OFF mode
 # becomes a duplicate of its reasoning-ON cousin, and a comparison between them measures

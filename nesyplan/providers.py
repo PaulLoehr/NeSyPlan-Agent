@@ -24,8 +24,8 @@ The `effort` vocabulary is deliberately shared across both providers (none / low
 medium / high, empty = omit = the model's own default level), so EpisodeConfig
 .reasoning_on_effort and the reasoning=True/False switch mean the same thing everywhere.
 Whether a model actually HONORS "none" is a property of the serving backend, not of the
-API -- verify with `python3 -m nesyplan.probe_reasoning` (see docs/FINDINGS.md,
-Finding A) before trusting a reasoning-OFF leg on a new model.
+API -- verify with `python3 -m nesyplan.probe_reasoning` before trusting a reasoning-OFF
+leg on a new model.
 """
 
 import os
