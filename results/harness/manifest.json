@@ -1,0 +1,93 @@
+{
+  "campaign": "harness",
+  "created_at": "2026-09-16T10:51:43",
+  "git_sha": null,
+  "model": null,
+  "models": [
+    "qwen/qwen3-32b"
+  ],
+  "backend": "fake",
+  "url": "http://localhost:8100",
+  "scorer": "judge",
+  "judge_model": "qwen3-32b",
+  "judge_effort": null,
+  "judge_reasoning": true,
+  "render_png": true,
+  "temperature": 0.6,
+  "top_p": 0.95,
+  "max_steps": 25,
+  "seed": null,
+  "reps": 2,
+  "no_reset": false,
+  "feedback_level": "fix",
+  "scenario_override": null,
+  "tasks": [
+    {
+      "id": "flag_excavate",
+      "difficulty": "R1",
+      "prompt": "Build the German flag as a vertical tower of three blocks: read the tower from top to bottom like you read the flag from top to bottom.",
+      "scenario": "buried_black",
+      "check": "stack[flag tower (yellow-red-black bottom-up)]"
+    },
+    {
+      "id": "unbox_red",
+      "difficulty": "R2",
+      "prompt": "Stack three blocks into a tower: blue at the bottom, green in the middle, red on top.",
+      "scenario": "boxed_red",
+      "check": "stack[blue -> green -> red]"
+    },
+    {
+      "id": "flag_repair",
+      "difficulty": "R3",
+      "prompt": "The three German-flag colours are already stacked in the building area, but in the wrong order. Rebuild that tower so it shows the flag correctly: read the tower from top to bottom like you read the flag from top to bottom.",
+      "scenario": "flag_inverted",
+      "check": "stack[flag tower (yellow-red-black bottom-up)]"
+    },
+    {
+      "id": "pyramid_rebuild",
+      "difficulty": "R4",
+      "prompt": "Build a pyramid out of all six blocks: three on the bottom, two resting on top of them, and one on top of those.",
+      "scenario": "clutter_diagonal",
+      "check": "levels[3-2-1 pyramid]+all"
+    }
+  ],
+  "configs": [
+    {
+      "label": "oneshot_nocot",
+      "policy": "oneshot",
+      "cache": "none",
+      "no_initial_reasoning": true
+    },
+    {
+      "label": "oneshot",
+      "policy": "oneshot",
+      "cache": "none"
+    },
+    {
+      "label": "act",
+      "policy": "reason_first",
+      "cache": "none",
+      "no_initial_reasoning": true
+    },
+    {
+      "label": "react",
+      "policy": "always",
+      "cache": "none"
+    },
+    {
+      "label": "react_summary",
+      "policy": "always",
+      "cache": "summary"
+    },
+    {
+      "label": "on_error_summary",
+      "policy": "on_error",
+      "cache": "summary"
+    },
+    {
+      "label": "react_raw",
+      "policy": "always",
+      "cache": "raw"
+    }
+  ]
+}

@@ -1,0 +1,623 @@
+/* NeSyPlan agent demonstrator -- self-contained, no external assets.
+   A Claude-Code/Codex-style console: dark and light, following the OS unless the header's
+   theme button overrides it (see the colour block below). */
+
+/* ===========================================================================
+   COLOURS -- two layers, so a colour change is a ONE-LINE change.
+
+   1. PALETTE (--c-*): the raw colours, one line each, carrying BOTH themes via
+      light-dark(<light>, <dark>). Nothing below uses these directly.
+   2. ROLES: what the UI actually references (--ok, --accent, --text, ...). Each
+      role points at a palette entry. To recolour something, either give the
+      palette entry a new value (changes every role using it) or point one role
+      at a different palette entry.
+
+   Which half of every light-dark() applies is decided by `color-scheme` on :root
+   -- so the theme switch below is three lines and needs no second palette. It
+   also makes native widgets (scrollbars, selects, the textarea caret) follow the
+   theme for free.
+
+   `-ink` variants exist because a colour used as TEXT needs more contrast than
+   the same colour used as a 9px dot or a button fill. On dark they are the same
+   value; on the near-white light background the ink stays darker (a brighter
+   green there measures 3.0 against the background -- fine for a dot, too weak
+   for an 11px label).
+   =========================================================================== */
+:root {
+  /* Follow the OS unless the UI's theme button says otherwise (it sets data-theme). */
+  color-scheme: light dark;
+
+  /* --- palette:            light      dark    --- */
+  --c-bg:        light-dark(#f6f7f9,  #1c2128);
+  --c-bg-1:      light-dark(#ffffff,  #22272e);
+  --c-bg-2:      light-dark(#f0f2f5,  #2d333b);
+  --c-line:      light-dark(#dce1e7,  #444c56);
+  --c-line-soft: light-dark(#e7ebf0,  #343b44);
+  --c-ink:       light-dark(#1a2029,  #e6edf3);
+  --c-ink-dim:   light-dark(#55606c,  #9aa7b4);
+  --c-ink-faint: light-dark(#8a95a1,  #828e9b);
+  /* THE green of this UI: dots, "done", connection */
+  --c-green:     light-dark(#2da44e,  #56d364);
+  --c-green-ink: light-dark(#1a7f37,  #56d364);   /* the same green as TEXT */
+  --c-blue:      light-dark(#3b6fd6,  #7aa2f7);
+  --c-red:       light-dark(#cf222e,  #f85149);
+  --c-amber:     light-dark(#9a6700,  #d29922);
+  --c-violet:    light-dark(#8250df,  #b48ead);   /* reasoning */
+
+  /* --- roles --- */
+  --bg: var(--c-bg);
+  --bg-elev: var(--c-bg-1);
+  --bg-elev-2: var(--c-bg-2);
+  --border: var(--c-line);
+  --border-soft: var(--c-line-soft);
+  --text: var(--c-ink);
+  --text-dim: var(--c-ink-dim);
+  --text-faint: var(--c-ink-faint);
+  --ok: var(--c-green);         /* success: tool dots, "done", connection */
+  --ok-ink: var(--c-green-ink);
+  --accent: var(--c-green);     /* interactive: hover/focus rings, active tab */
+  --accent-ink: var(--c-green-ink);
+  --accent-2: var(--c-blue);    /* links */
+  /* The two context layers are NOT accents -- they are quantities. Two weights of the same ink
+     read as "more" and "less" of one thing, which is what they are; a green/blue pair implied
+     two unrelated kinds. Heavier ink = the layer that persists.
+     The loop tone is its own palette entry, NOT --c-ink-dim: dim is tuned for TEXT, and against
+     the full ink it only differed by L* 25 -- two dark greys side by side. This one sits L* ~50
+     away from the base while still reading as a filled segment on the track (measured: base/loop
+     6.2 light and 3.8 dark, loop/track 2.4 and 2.8). Fill only -- too weak for type. */
+  --layer-base: var(--c-ink);
+  --layer-loop: light-dark(#96a0ab, #6b7885);
+  --err: var(--c-red);
+  --warn: var(--c-amber);
+  --think: var(--c-violet);
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --radius: 12px;
+  --shadow: 0 6px 24px light-dark(rgba(20,30,50,.12), rgba(0,0,0,.35));
+  --chat-w: 680px;        /* ONE column width for the transcript and the composer */
+  /* ONE measure for the header's height and a folded rail's width: 32px icon button + the rail's
+     16px inset on both sides. The top-left corner is therefore square and the fold button keeps
+     the same inset whether its rail is open or folded. */
+  --rail-fold: 64px;
+  --header-h: 46px;       /* deliberately NOT --rail-fold: the header stays low and quiet */
+  /* The header's outermost items -- the mark and the connection dot -- are CENTRED on the same
+     vertical axis as the fold button of the rail below them (--rail-fold / 2 from each edge).
+     Their sizes live here because that centring is computed from them; changing one size here
+     keeps the axis, hard-coding a padding somewhere would silently break it. */
+  --logo-w: 25px;
+  --conn-dot: 9px;
+  --ctrl-h: 36px;         /* one height for every control in a rail: selects and buttons */
+  /* Half of what is left over beside them. Used TWICE on each side -- as the outer inset and as
+     the gap to the next item -- which lands that neighbour (the wordmark on the left, the badge
+     on the right) exactly on the rail's divider line at --rail-fold. */
+  --logo-inset: calc((var(--rail-fold) - var(--logo-w)) / 2);
+  --conn-inset: calc((var(--rail-fold) - var(--conn-dot)) / 2);
+}
+
+/* The theme button writes data-theme on <html>; absent = follow the OS. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--sans); font-size: 14px; line-height: 1.55;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+/* Vue mounts here: it must fill the viewport and be the flex column that bounds the
+   scrollable regions (sidebar + chat stream). Without this the heights collapse and
+   content overflows below the fold. */
+#app { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+/* --- top bar --- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: var(--header-h);
+  padding: 0; background: var(--bg-elev);   /* the two ends set their own inset (see below) */
+  flex: 0 0 auto;
+}
+/* The header draws NO line of its own. It carries the same surface as the two rails, so across
+   them the frame reads as one piece; the line that closes it off from the chat sits on `.chat`
+   (border-top), i.e. exactly over the chat column and nowhere else. */
+/* inset so the MARK's centre lands on the fold-button axis, not so its left edge does; the same
+   value as the gap, so the wordmark starts on the rail's divider line */
+.brand { display: flex; align-items: center;
+  padding-left: var(--logo-inset); gap: var(--logo-inset); }
+/* NeSyPlan mark. The SVG is single-colour, so it is used as a MASK and painted with
+   the theme's text colour -- black on light, white on dark -- instead of shipping two files. */
+.brand .logo, .intro-logo {
+  display: block; flex: 0 0 auto; background-color: currentColor;
+  -webkit-mask: url(/assets/nesyplan-mark.svg) center / contain no-repeat;
+  mask: url(/assets/nesyplan-mark.svg) center / contain no-repeat;
+}
+/* artwork is 761x805; the mask is `contain`, so a box of any ratio paints it centred */
+.brand .logo { width: var(--logo-w); height: 26px; color: var(--text); }
+.brand .name { font-weight: 650; font-size: 15.5px; letter-spacing: .2px; }
+/* mirror image: the inset centres the connection DOT on the right rail's fold-button axis, and
+   the same value as the gap ends the badge on that rail's divider line */
+.topbar-right { display: flex; align-items: center;
+  gap: var(--conn-inset); padding-right: var(--conn-inset); }
+/* Theme switch: ONE button cycling system -> light -> dark. The icon shows the current
+   state (monitor / sun / moon), the tooltip names the next one. Deliberately quiet -- it is
+   a preference, not a control that belongs in the reading path. */
+.theme-btn { display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 1px solid transparent; border-radius: 7px; background: none; color: var(--text-faint);
+  cursor: pointer; transition: color .15s, border-color .15s; }
+.theme-btn:hover { color: var(--text); border-color: var(--border); }
+
+/* Context bar: two stacked segments -- the cross-task history (base) and the current task's
+   loop. Same colours in the bar and in the legend keys next to the numbers. */
+.seg { display: block; height: 100%; width: 0%; transition: width .3s ease; }
+.seg.base { background: var(--layer-base); }
+.seg.loop { background: var(--layer-loop); }
+
+.target-badge { font-size: 11.5px; font-weight: 700; letter-spacing: .6px; padding: 4px 10px;
+  border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); }
+.target-badge.sim { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+/* fake/replay backends: no simulator, no arm -- deliberately drab so they are never
+   mistaken for a live cell (replay additionally calls no LLM at all) */
+.target-badge.fake,
+.target-badge.replay { color: var(--text-faint); border-style: dashed; }
+
+.conn { display: flex; }   /* no line-height slack, so the dot is exactly --conn-dot wide */
+.conn i { display: block; width: var(--conn-dot); height: var(--conn-dot); border-radius: 50%;
+  background: var(--text-faint); }
+.conn.up i { background: var(--ok); box-shadow: 0 0 8px color-mix(in srgb, var(--ok) 60%, transparent); }
+.conn.down i { background: var(--err); }
+
+/* --- layout: three columns, each rail's width in a variable ---
+   The breakpoints below set those variables, and folding a rail sets it to the narrow strip
+   width. Both act on the same knob, so neither has to out-specify the other (a plain
+   grid-template-columns in a media query would beat any .no-left rule further up the file).
+   Each child is pinned to ITS column: a rail that is display:none at a breakpoint would
+   otherwise drop out of the flow and shift the chat into the rail's column. */
+.layout { flex: 1 1 auto; display: grid; min-height: 0;
+  --rail-l: 260px; --rail-r: 280px;   /* --rail-fold is in :root -- the header shares it */
+  grid-template-columns: var(--rail-l) minmax(0, 1fr) var(--rail-r); }
+.layout.no-left  { --rail-l: var(--rail-fold); }
+.layout.no-right { --rail-r: var(--rail-fold); }
+.layout > .sidebar { grid-column: 1; }
+.layout > .chat { grid-column: 2; }
+.layout > .sidebar.right { grid-column: 3; }
+
+/* --- sidebars: operate on the left, watch on the right --- */
+.sidebar { background: var(--bg-elev); border-right: 1px solid var(--border);
+  padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+/* the right rail mirrors the left one, only its border sits on the other edge */
+.sidebar.right { border-right: none; border-left: 1px solid var(--border); }
+/* folded: the rail stays -- as a strip holding its one icon. The rail keeps its width in the
+   grid, so nothing in the chat or the other rail moves when it folds. */
+/* same 16px inset as the open rail on every side -- folding then moves the icon horizontally
+   only, never vertically */
+.sidebar.folded { padding: 16px 0; align-items: center; overflow: hidden; }
+/* The fold control is the rail's own first row -- the header carries no chrome at all. Open, it
+   sits at the rail's INNER edge, next to the chat and next to the other rail's control; folded,
+   the strip's align-items centres it. Its look is the composer's / and send button -- one shared
+   rule down at `.send, .rail-stub`, so the three cannot drift apart. */
+.rail-head { display: flex; align-items: center; justify-content: flex-end; margin-bottom: -8px; }
+.sidebar.right .rail-head { justify-content: flex-start; }
+/* One heading style for every section of a rail: label + a hairline running to the edge (the same
+   figure the chat's task separator uses). It is DIM where a field label is FAINT -- that contrast
+   is what makes the group read as the parent of the fields under it. */
+.group-head, .meters h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 2px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--text-dim); }
+.group-head::after, .meters h3::after { content: ""; height: 1px; flex: 1;
+  background: var(--border-soft); }
+.rail-group { display: flex; flex-direction: column; gap: 14px; }
+
+.field label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--text-faint); margin-bottom: 6px; }
+/* the chevron sits INSIDE the field, at its right edge, and never eats the click */
+.select-wrap { position: relative; }
+/* deliberately not faint: this is the only cue that the field is a control, so it carries the
+   dim ink and enough size to be caught at a glance */
+.select-wrap::after { content: "▾"; position: absolute; right: 10px; top: 50%; line-height: 1;
+  transform: translateY(-50%); font-size: 15px; color: var(--text-dim); pointer-events: none; }
+.select-wrap:has(select:hover)::after,
+.select-wrap:has(select:focus)::after { color: var(--text); }
+.select-wrap:has(select:disabled)::after { opacity: .4; }
+select {
+  width: 100%; min-height: var(--ctrl-h); padding: 0 28px 0 10px;
+  background: var(--bg-elev-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 9px; font-family: var(--sans); font-size: 13px;
+  appearance: none; cursor: pointer;
+}
+select:hover { border-color: var(--text-faint); }
+select:disabled { cursor: not-allowed; opacity: .55; }
+/* neutral focus, like the composer: green in this UI means STATE (a dot, a connection, the
+   context bar), never "you are touching this control" */
+select:focus { outline: none; border-color: var(--text-faint); }
+.mode-desc, .hint { color: var(--text-dim); }
+.hint { font-size: 12px; margin: 6px 0 0; }
+.hint.tiny { font-size: 11px; color: var(--text-faint); line-height: 1.5; }
+
+.controls { display: flex; flex-direction: column; gap: 8px; }
+/* Same height and type size as a select (--ctrl-h): both are controls in the same rail, and the
+   button was 6px taller because `font: inherit` gave it the body's 14px/1.55 while the select
+   runs at 13px with the native line-height. */
+.btn { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: var(--ctrl-h); padding: 0 12px; border: 1px solid var(--border); border-radius: 9px;
+  background: var(--bg-elev-2); color: var(--text); font: inherit; font-size: 13px; cursor: pointer;
+  transition: border-color .15s, background .15s; }
+.btn:hover { border-color: var(--text-faint); }
+.btn.ghost { background: transparent; }
+.btn:disabled { opacity: .45; cursor: not-allowed; border-color: var(--border); }
+.kbd { font-family: var(--mono); font-size: 10px; color: var(--text-faint);
+  border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
+
+.meters h3 { margin-bottom: 8px; }   /* the rest comes from the shared .group-head rule above */
+.meter-row { display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; color: var(--text-dim); padding: 3px 0; }
+.meter-row.sub { color: var(--text-faint); font-size: 11px; }
+.meter-row b { font-family: var(--mono); color: var(--text); font-weight: 500; }
+.meter-row span { display: inline-flex; align-items: center; gap: 6px; }
+.meter-row em { font-style: normal; font-size: 10px; color: var(--text-faint);
+  border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+/* sidebar bar: the SPLIT of the last request (100% wide), not the window fullness */
+.ctx-stack { display: flex; height: 10px; border-radius: 6px; overflow: hidden; margin-bottom: 9px;
+  background: var(--bg-elev-2); border: 1px solid var(--border-soft); }
+.key { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+.key.base { background: var(--layer-base); }
+.key.loop { background: var(--layer-loop); }
+/* the two layers add up to this row, so mark it as the total */
+.meter-row.sum { border-top: 1px solid var(--border-soft); margin-top: 3px; padding-top: 5px; }
+.meter-row.sum span { color: var(--text); }
+
+/* everything from here sits at the BOTTOM of the rail */
+.meters.push { margin-top: auto; }
+/* ONE cube, one look -- on the plate, in the gripper, in the store. Shared here so the three
+   places cannot drift apart in size or shape; only the plate positions it absolutely.
+
+   A cube is ONE COLUMN of the rail minus a hairline: two cubes side by side leave a `--cube-gap`
+   slot between them and nothing more, so the building area reads as a surface with cubes ON it
+   rather than as counters scattered over a grid. The plate, the store and the gripper all span
+   the same width and divide it the same way, so "one column" means the same everywhere -- and a
+   narrower rail scales all three together instead of leaving 28px tiles rattling in the cells.
+   Only the box a percentage measures against differs, hence the store's own rule below. */
+.cube-dot, .plate-cube {
+  --cube-gap: 5px;
+  --cube: calc(var(--cell) - var(--cube-gap));
+  width: var(--cube); aspect-ratio: 1 / 1; border-radius: 7px;
+  border: 1px solid rgba(0,0,0,.35); display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; line-height: 1; }
+/* a store slot IS one column, so its own 100% is already the cell the others compute */
+.sv-row.store .cube-dot { --cube: calc(100% - var(--cube-gap)); }
+/* an empty slot -- the gripper with nothing in it, or a store place whose cube is out.
+   Keeps the space and shows that it is free, so neither panel changes shape. */
+.cube-dot.empty { background: transparent; border: 1px dashed var(--border); box-shadow: none; }
+
+/* Live world-state view: the right rail's only occupant, so the PANEL is centred in it
+   vertically (margin auto in the rail's flex column) -- the type inside stays left-aligned like
+   everywhere else. Three blocks, each a label on its own line above the thing it names: what is
+   in the gripper, the building area, the store. */
+/* `--cell` -- one column of the rail -- lives here, not on the plate, because all three blocks
+   are full-width children and divide that same width: the plate into grid squares, the store
+   into slots, and the gripper holds one of the same size. StateView.gridStyle overrides it with
+   the world's real grid count. */
+.state-view { --cell: calc(100% / 6);
+  margin: auto 0; display: flex; flex-direction: column; gap: 18px;
+  align-items: stretch; }
+.sv-block { display: flex; flex-direction: column; gap: 7px; }
+.sv-block h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--text-faint); margin: 0; }
+/* the value line: one cube, several, or the word for "nothing". Its min-height is a cube, so
+   picking one up or putting it down does not make the panel jump. */
+.sv-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  min-height: 30px; font-size: 12px; color: var(--text-dim); }
+/* The store sits UNDER the plate and reads as its supply, so its slots take the plate's own
+   column rhythm: equal-width columns across the full width, each cube centred in one. With as
+   many slots as grid units, every slot lines up with the column above it. `grid-auto-columns`
+   does that without knowing the count -- one cube more or less needs no CSS change. */
+.sv-row.store { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  justify-items: center; gap: 0; }
+.sv-row b { font-family: var(--mono); font-weight: 500; color: var(--text); font-size: 11px; }
+/* Top-down view of the building area. y=0 is the BOTTOM edge (front, nearest the viewer) --
+   see StateView.cubeStyle. `--cell` is one grid square, set inline from the world's real grid;
+   `--stack-dx`/`--stack-dy` is one step of the lean a raised cube gets (see below). */
+.plate { --cell: calc(100% / 6);
+  --stack-dx: 5px; --stack-dy: -6px;   /* y is the steeper one -- that step reads as height */
+  position: relative; width: 100%; aspect-ratio: 1 / 1; border: 1px solid var(--border); border-radius: 8px;
+  background-color: var(--bg-elev-2);
+  background-image: linear-gradient(var(--border-soft) 1px, transparent 1px), linear-gradient(90deg, var(--border-soft) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell); background-position: -1px -1px; }
+
+/* THE LEAN. Seen from straight above, a cube standing on another is one square with a number
+   on it -- everything underneath is simply gone. So a cube is drawn `--lvl` steps towards the
+   back-right (up and right on screen: the direction height moves in when you look at the cell
+   from the front), which leaves a sliver of whatever is below it in view.
+
+   The lean follows the LEVEL, not the pile: a cube cannot float, so level 1 is one step out
+   wherever it stands -- on a tower, on the shoulder of a pyramid, straddling two others. Level
+   0 always sits dead centre on its cell, which keeps the grid readable as a grid.
+
+   min()/max() stop a leaning tower from climbing off the panel: `--cx`/`--cy` are percentages
+   of the plate, so the clamp is simply how far past its edge a cube may hang. A QUARTER of a
+   cube, not none: the outermost cells sit half a cell from the edge, and clamping a cube fully
+   inside would leave a tower in the back-right corner no room at all -- every level would land
+   on the same spot, which is the one thing this whole figure exists to avoid. */
+.plate-cube { position: absolute; transform: translate(-50%, -50%);
+  left: min(calc(var(--cx) + var(--lvl, 0) * var(--stack-dx)), calc(100% - var(--cube) / 4));
+  top:  max(calc(var(--cy) + var(--lvl, 0) * var(--stack-dy)), calc(var(--cube) / 4));
+  /* the higher it sits, the further it floats above what it stands on -- the shadow is what
+     separates two cubes of the SAME colour */
+  box-shadow: 0 calc(1px + min(var(--lvl, 0), 3) * 1px) calc(4px + min(var(--lvl, 0), 3) * 2px) rgba(0,0,0,.45);
+  transition: left .18s ease, top .18s ease; }
+
+/* --- chat ---
+   Everything in the chat lives in ONE centred column of width --chat-w: the transcript rows,
+   the dividers AND the composer below. That is what makes the input exactly as wide as the
+   transcript, so the thread and the input line up with the same edges. */
+/* the header's line, drawn from below and only here -- see .topbar */
+.chat { display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  border-top: 1px solid var(--border); }
+.stream { flex: 1 1 auto; overflow-y: auto; padding: 22px 20px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px; scroll-behavior: smooth; }
+.stream > * { width: 100%; max-width: var(--chat-w); }
+
+/* the intro on an empty stream. NOT called `.empty`: that is a state MODIFIER elsewhere
+   (`.cube-dot.empty`), and this block's `margin: auto` would then centre those dots. */
+.intro { margin: auto; text-align: center; color: var(--text-faint); max-width: 460px; }
+.intro-logo { width: 44px; height: 47px; margin: 0 auto; color: var(--text-dim); opacity: .55; }
+.intro h2 { color: var(--text-dim); font-weight: 600; margin: 12px 0 6px; }
+.intro p { margin: 0; font-size: 13px; }
+
+/* --- the transcript as ONE thread ---
+   No bubbles: every event is a row of plain text in the same column, preceded by a dot in a
+   narrow left gutter. The dots are joined by a hairline, so a task reads as a single vertical
+   thread and the eye can follow it without any boxes. A dot says who acted and how it went:
+   grey = the model (reasoning or prose), green = a tool, red = a tool that failed. It PULSES
+   while the step is still running -- that is the only "loading" indicator in the UI.
+
+   The rail is drawn per row, from its OWN dot down to the next row's dot (top: 9px is the dot
+   centre, bottom: -14px bridges the .stream gap). Hence no stub above the first dot, and the
+   last row draws none at all. */
+.item { position: relative; padding-left: 26px; }
+.item::before { content: ""; position: absolute; left: 4px; top: 9px; bottom: -14px;
+  width: 1px; background: var(--border-soft); }
+.item:last-child::before { display: none; }
+/* the user's turn has no dot, so it neither draws a rail segment nor sits in the gutter */
+.item.ask { padding-left: 0; }
+/* A new instruction must not read as a continuation of the loop above it: full-width rule plus
+   real headroom (the stream's own 14px gap + 16px + 20px inside). Skipped on the first turn --
+   there is nothing above it to separate from. */
+.item.ask:not(:first-child) { margin-top: 16px; padding-top: 20px;
+  border-top: 1px solid var(--border); }
+.item.ask::before { display: none; }
+.item:has(+ .item.ask)::before { display: none; }
+/* A task separator ends the thread: no segment into it, none out of the row before it. */
+.item.divider::before { display: none; }
+.item:has(+ .item.divider)::before { display: none; }
+
+.dot { position: absolute; left: 0; top: 5px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--text-faint);
+  /* punch the rail out behind the dot so the line never shows through it */
+  box-shadow: 0 0 0 3px var(--bg); }
+.dot.tool { background: var(--ok); }
+.dot.tool.err, .dot.err { background: var(--err); }
+.dot.ok, .dot.done { background: var(--ok); }
+.dot.warn { background: var(--warn); }
+/* meta rows (notes, mode/model switches) are bookkeeping, not steps -> hollow, quiet */
+.dot.meta { background: transparent; border: 1px solid var(--border);
+  width: 7px; height: 7px; top: 6px; left: 1px; }
+/* the human turn, in the context inspector only: in the chat it has no dot (nothing to connect
+   it to), but there every message is a row of one thread, so it needs one to keep the line
+   unbroken. Blue is the colour the context bars already use for the carried history. */
+.dot.ask { background: var(--layer-base); }
+
+@keyframes dot-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(1.55); opacity: .45; }
+}
+.dot.pulse { animation: dot-pulse 1.25s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .dot.pulse { animation-duration: 2.5s; } }
+
+/* message text -- no background, no border, no radius: just type */
+.txt { white-space: pre-wrap; word-wrap: break-word; line-height: 1.55; }
+/* the human turn is the one thing that should stand out at a glance */
+.txt.user { color: var(--text); font-weight: 550; }
+.txt.state { color: var(--text-dim); font-size: 12.5px; }
+.txt.state.err { color: var(--err); }
+.txt.state.done { color: var(--ok-ink); }
+
+/* markdown-rendered agent content */
+.txt.md { white-space: normal; }
+.txt.md > :first-child { margin-top: 0; }
+.txt.md > :last-child { margin-bottom: 0; }
+.txt.md p { margin: 0 0 8px; }
+.txt.md h1,.txt.md h2,.txt.md h3,.txt.md h4,.txt.md h5,.txt.md h6 { margin: 10px 0 6px; line-height: 1.25; }
+.txt.md h1 { font-size: 1.3em; } .txt.md h2 { font-size: 1.18em; }
+.txt.md h3 { font-size: 1.08em; } .txt.md h4 { font-size: 1em; }
+.txt.md ul,.txt.md ol { margin: 4px 0 8px; padding-left: 22px; }
+.txt.md li { margin: 2px 0; }
+.txt.md code { font-family: var(--mono); font-size: .9em; padding: 1px 5px; border-radius: 5px;
+  background: color-mix(in srgb, var(--text) 12%, transparent); }
+.txt.md pre { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+.txt.md pre code { background: none; padding: 0; font-size: 12px; }
+.txt.md a { color: var(--accent-2); text-decoration: underline; }
+.txt.md blockquote { margin: 6px 0; padding: 2px 0 2px 12px; border-left: 2px solid var(--border); color: var(--text-dim); }
+.txt.md strong { font-weight: 650; }
+.txt.md hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+/* closing messages: a small label instead of the old coloured border (the dot carries it now) */
+.txt.md.done::before { content: "done"; display: block; color: var(--ok-ink);
+  font-size: 11px; font-weight: 600; letter-spacing: .3px; margin-bottom: 3px; }
+.txt.md.warn::before { content: "not finished"; display: block; color: var(--warn);
+  font-size: 11px; font-weight: 600; letter-spacing: .3px; margin-bottom: 3px; }
+
+/* task separator: only the mode -- the task text itself is the user line right below it */
+.divider { display: flex; align-items: center; gap: 10px; color: var(--text-faint);
+  font-size: 11.5px; margin-top: 4px; padding-left: 0; }
+.divider::after { content: ""; height: 1px; background: var(--border-soft); flex: 1; }
+.divider .mode-tag { font-family: var(--mono); color: var(--text-faint); order: -1; }
+
+/* reasoning -- live line while thinking, then one clickable line with the trace behind it */
+.think-live { color: var(--text-dim); font-size: 13px; }
+.think-live .elapsed { font-family: var(--mono); font-size: 11px; color: var(--text-faint); margin-left: 4px; }
+.think > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline;
+  gap: 8px; color: var(--text-dim); font-size: 13px; user-select: none; }
+.think > summary::-webkit-details-marker { display: none; }
+.think > summary:hover { color: var(--text); }
+.think > summary .chev { color: var(--text-faint); font-size: 9px; transition: transform .15s;
+  margin-left: -4px; }
+.think[open] > summary .chev { transform: rotate(90deg); }
+.think > summary .th-lead { flex: 0 0 auto; }
+/* the facts stay legible but never compete with the sentence */
+.think > summary .th-meta { display: flex; gap: 8px; flex-wrap: wrap; font-family: var(--mono);
+  font-size: 11px; color: var(--text-faint); }
+.think > summary .th-meta > span::before { content: "· "; }
+.think > summary .th-meta .hard_failure { color: var(--err); }
+.think > summary .th-meta .self, .think > summary .th-meta .pre_done { color: var(--accent-2); }
+/* The expanded trace is just type: same family and size as everything else (both inherited),
+   only the ink dimmed, because it is thinking rather than speech. No dot, no side rule, no
+   indent -- it aligns under the summary line that opens it. And no height cap: expanding is an
+   explicit click, so it shows the WHOLE trace rather than a scroll box inside a scroll box. */
+.think-body { margin: 6px 0 2px; color: var(--text-dim);
+  white-space: pre-wrap; line-height: 1.55; word-break: break-word; }
+
+/* tool call -- the signature as code, its result quietly underneath */
+.tool .call { font-family: var(--mono); font-size: 12.5px; color: var(--text-dim); }
+.tool .call .fn { color: var(--text); font-weight: 600; }
+.tool .result { font-size: 12px; margin-top: 2px; color: var(--text-faint); }
+.tool .result.err { color: var(--err); }
+
+/* notes: session bookkeeping (mode/model switches, compaction) */
+.note { color: var(--text-faint); font-size: 11.5px; line-height: 1.45; }
+.note.cache { color: var(--text-faint); }
+/* cache write: a quiet label, then the text in the .txt.md block used for the agent's own
+   prose -- same font, same size, same colour, because it is the assistant content now. */
+.cw-label { color: var(--text-faint); font-size: 11.5px; line-height: 1.45; cursor: help;
+  margin-bottom: 3px; }
+
+/* --- composer: one integrated box, buttons inside, grows with the text. Capped to --chat-w so
+   it lines up with the transcript column. The box carries a FILLED surface (white on light, the
+   panel tone on dark -- the same `--bg-elev` the sidebars use), which lifts the input off the
+   page background instead of leaving it flush with the transcript. --- */
+.composer { flex: 0 0 auto; position: relative; padding: 14px 20px 14px; background: transparent; }
+.composer-box { position: relative; display: flex; align-items: flex-end; gap: 8px;
+  max-width: var(--chat-w); margin: 0 auto;
+  border: 1px solid var(--border); border-radius: 14px; background: var(--bg-elev);
+  transition: border-color .15s;
+  /* symmetric: the / button sits at the left edge, the send button at the right */
+  padding: 8px 10px; }
+/* neutral focus ring: the input carries no accent colour of its own */
+.composer-box:focus-within { border-color: var(--text-faint); }
+.composer-ta { flex: 1; min-width: 0; resize: none; border: none; background: transparent; color: var(--text);
+  font: inherit; line-height: 1.5; padding: 5px 0; max-height: 40vh; overflow-y: auto; }
+/* disclaimer under the input, in the same column -- wording depends on the target, because on
+   `sim` no real hardware moves and claiming otherwise would be wrong */
+.composer-note { max-width: var(--chat-w); margin: 10px auto 0; text-align: center;
+  font-size: 11px; line-height: 1.45; color: var(--text-faint); }
+.composer-note b { font-weight: 600; color: var(--text-dim); }
+.composer-ta::placeholder { color: var(--text-faint); }
+.composer-ta:focus { outline: none; }
+.composer-ta:disabled { opacity: .5; }
+.icon-btn.slash-btn { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--bg-elev-2); color: var(--text-dim); font-family: var(--mono); font-size: 15px; line-height: 1;
+  cursor: pointer; display: grid; place-items: center; transition: border-color .15s, color .15s; }
+.icon-btn.slash-btn:hover, .send:hover, .rail-stub:hover { border-color: var(--text-faint); color: var(--text); }
+.icon-btn.slash-btn:disabled { opacity: .4; cursor: not-allowed; }
+/* the send button is the / button's twin -- same size, same outline, same neutral ink. The two
+   rails' fold buttons join the same rule: every square icon button in the UI is this one. */
+.send, .rail-stub { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 9px; padding: 0;
+  border: 1px solid var(--border); background: var(--bg-elev-2); color: var(--text-dim);
+  cursor: pointer; display: grid; place-items: center; transition: border-color .15s, color .15s; }
+.send:disabled { opacity: .4; cursor: not-allowed; }
+/* While a task runs the send button becomes the stop button -- same slot, same neutral look,
+   no layout shift. What marks it is the square glyph and, once pressed, the pulse:
+   `.pending` = stop requested, the loop is still unwinding (it halts before the next move). */
+.send.stop.pending { animation: stop-pulse 1.1s ease-in-out infinite; }
+@keyframes stop-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+/* slash-command picker, floats above the input box */
+.slash-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); background: var(--bg-elev);
+  border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); overflow-y: auto;
+  max-height: 260px; z-index: 15; }
+.slash-item { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; cursor: pointer; }
+.slash-item.active { background: var(--bg-elev-2); }
+.slash-label { font-family: var(--mono); color: var(--text); font-size: 13px; white-space: nowrap; }
+.slash-hint { color: var(--text-faint); font-size: 12px; }
+
+/* --- modal --- */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: grid;
+  place-items: center; z-index: 20; padding: 20px; }
+.modal-backdrop[hidden] { display: none; }   /* the hidden attr must beat display:grid */
+.modal { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); width: min(680px, 100%); max-height: 80vh; display: flex; flex-direction: column; }
+.modal header { display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.modal header h3 { margin: 0; font-size: 14px; }
+.modal-body { padding: 14px 16px; overflow: auto; font-family: var(--mono); font-size: 12.5px;
+  white-space: pre-wrap; color: var(--text-dim); }
+.icon-btn { background: none; border: none; color: var(--text-dim); font-size: 15px; cursor: pointer; }
+.icon-btn:hover { color: var(--text); }
+.icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* --- context inspector: the two conversations behind the context bars --- */
+.clickable { cursor: pointer; }
+.meter-row.clickable:hover { color: var(--text); }
+.meter-row.clickable:hover b { color: var(--text); }
+.ctx-stack .seg { cursor: pointer; }
+
+.ctx-modal { width: min(940px, 100%); }
+.ctx-modal > header { gap: 12px; }
+.ctx-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.ctx-tabs button { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px;
+  border: 1px solid var(--border); border-radius: 999px; background: transparent;
+  color: var(--text-dim); font: inherit; font-size: 12.5px; cursor: pointer; }
+/* neutral like every other control -- the tab's own layer colour is the key swatch inside it */
+.ctx-tabs button:hover { border-color: var(--text-faint); }
+.ctx-tabs button.active { background: var(--bg-elev-2); color: var(--text); border-color: var(--text-faint); }
+.ctx-tabs button span { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+.ctx-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+
+/* "nothing here" lines in the inspector (error, loading, an empty layer) */
+.empty-hint { color: var(--text-faint); font-style: italic; }
+.ctx-body { font-family: var(--sans); white-space: normal; display: flex; flex-direction: column; gap: 10px; }
+.layer-desc { margin: 0 0 2px; }
+
+/* The context is a CONVERSATION, so it is drawn as the chat draws one: .item rows with a dot in
+   the gutter, joined by the hairline, plain type, no boxes and no per-role border colours. The
+   14px gap is what .item::before (bottom: -14px) bridges -- same value as the stream. The roles
+   map onto the dots the chat already established: hollow = frame/system, grey = the model, green
+   = a tool result, and the human turn keeps no dot at all (.item.ask), which is what makes each
+   task boundary visible in the base layer. */
+.ctx-thread { display: flex; flex-direction: column; gap: 14px; }
+/* the role, as quiet meta type -- not a badge in caps: the dot already carries the role, this
+   only names it and numbers the message so one can be referred to */
+.ctx-role { font-size: 11.5px; line-height: 1.45; color: var(--text-faint); margin-bottom: 1px; }
+.ctx-role .idx { font-family: var(--mono); }
+/* every message in full: no folding, no per-message scrollbar. What the model gets is the point
+   of this view, so hiding part of it behind a click would defeat it. */
+.ctx-thread .txt { color: var(--text); }
+/* between tasks: the loop layer is a snapshot of what was sent, plus what it collapsed to.
+   Both are hints, so they look like hints -- small and grey, like the note in the chat. */
+.ctx-banner { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--text-faint); }
+.ctx-compacted { border-top: 1px solid var(--border-soft); margin-top: 6px; padding-top: 12px;
+  display: flex; flex-direction: column; gap: 14px; }
+.ctx-compacted-head { font-size: 11.5px; color: var(--text-faint); }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+@media (max-width: 1180px) {
+  .layout { --rail-l: 232px; --rail-r: 248px; }
+  .sidebar { padding: 14px 12px; }
+  /* The cube keeps its 28px here but the cell shrinks with the rail, so a step of the lean has
+     to shrink with it -- same figure, tighter. */
+  .plate { --stack-dx: 4px; --stack-dy: -5px; }
+}
+/* Narrow windows drop a rail COMPLETELY -- not even the folded strip is worth the pixels. The
+   folded selector is repeated so it cannot win on specificity and leave an empty strip behind. */
+@media (max-width: 980px) {   /* the world view goes first -- the chat is the point */
+  .layout, .layout.no-right { --rail-r: 0px; }
+  .sidebar.right { display: none !important; }
+}
+@media (max-width: 760px) {
+  .layout, .layout.no-left { --rail-l: 0px; }
+  .sidebar { display: none !important; }
+}

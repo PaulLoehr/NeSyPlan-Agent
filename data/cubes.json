@@ -1,0 +1,18 @@
+{
+  "_comment": "SINGLE SOURCE OF TRUTH for the cube set. Edit this file, then run scripts/gen_cubes.py to regenerate the per-cube URDFs (+ meshes/textures). The workflows read this file at runtime (mounted as /data/cubes.json) for the cube list, size, colors and numbers, so nothing about a cube is defined twice. See scripts/gen_cubes.py and examples/ur/cube_catalog.py.",
+
+  "cube_size": 0.06,
+  "mass": 0.016,
+
+  "_render_mode": "How the number is shown on the cube faces in sim. 'texture' = a generated PNG (color + digit) UV-mapped onto a cube mesh (arbitrary numbers/labels, needs the sim renderer to display mesh textures -- verify with the spike). 'pips' = die-style dots built from URDF boxes (URDF-native, no texture support needed, best for 1..9). 'box' = plain colored box, no number (the original look).",
+  "render_mode": "texture",
+
+  "cubes": [
+    {"id": "cube_red",    "number": 1, "color": "red",    "rgba": [0.9,  0.1,  0.1,  1.0]},
+    {"id": "cube_green",  "number": 2, "color": "green",  "rgba": [0.1,  0.7,  0.1,  1.0]},
+    {"id": "cube_blue",   "number": 3, "color": "blue",   "rgba": [0.1,  0.3,  0.9,  1.0]},
+    {"id": "cube_yellow", "number": 4, "color": "yellow", "rgba": [0.95, 0.85, 0.1,  1.0]},
+    {"id": "cube_black",  "number": 5, "color": "black",  "rgba": [0.05, 0.05, 0.05, 1.0]},
+    {"id": "cube_white",  "number": 6, "color": "white",  "rgba": [0.95, 0.95, 0.95, 1.0]}
+  ]
+}
